@@ -1,5 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+using System;
+using System.Collections;
 using UnityEngine;
 using System.Linq;
 using KMHelper;
@@ -25,7 +25,7 @@ public class PressX : MonoBehaviour
     //Room shown, lights off
     private void Awake()
     {
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 4; i++)
         {
             //Button handling 
             int b = i;
@@ -207,6 +207,70 @@ public class PressX : MonoBehaviour
                     Module.HandleStrike();
                 }
             }
+        }
+    }
+
+#pragma warning disable 414
+    private string TwitchHelpMessage = "Submit button presses using !{0} press x on 1.";
+    private int TwitchPlaysModuleScore = 1;
+#pragma warning restore 414
+
+    private IEnumerator ProcessTwitchCommand(string inputCommand)
+    {
+        KMSelectable button;
+        var command = inputCommand.ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        if (command.Length == 2) command = new string[] { command[0], command[1], "on", "" };
+        if (!command[0].Equals("press") && !command.Length.Equals(4)) yield break;
+        switch (command[1])
+        {
+            case "x":
+                button = Buttons[0];
+                break;
+            case "y":
+                button = Buttons[1];
+                break;
+            case "a":
+                button = null;
+                yield return null;
+                yield return new KMSelectable[] { Buttons[2] };
+                yield break;
+            case "b":
+                button = null;
+                yield return null;
+                yield return new KMSelectable[] { Buttons[3] };
+                yield break;
+            default:
+                button = null;
+                yield break;
+        }
+        if (!command[2].Equals("at") && !command[2].Equals("on")) yield break;
+        int result;
+        float timeRemaining = Info.GetTime();
+        int target = Mathf.FloorToInt(timeRemaining) % 10;
+        if (int.TryParse(command[3], out result))
+        {
+            if (button == null || result < 0 || result > 9 ) yield break;
+            yield return null;
+            int i = 0;
+            while (!(target == result))
+            {
+                yield return new WaitForSeconds(.1f);
+                target = (Mathf.FloorToInt(Info.GetTime()) % 10);
+                i++;
+                if (i > 200)
+                {
+                    yield return null;
+                    yield return "sendtochat There was an issue processing your command and it will be cancelled.";
+                    yield break;
+                }
+            }
+            yield return new KMSelectable[] { button };
+        }
+        else
+        {
+            if (button == null) yield break;
+            yield return null;
+            yield return new KMSelectable[] { button };
         }
     }
 }
