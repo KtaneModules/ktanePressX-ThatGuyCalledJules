@@ -260,7 +260,7 @@ public class PressX : MonoBehaviour
                 if (i > 200)
                 {
                     yield return null;
-                    yield return "sendtochat There was an issue processing your command and will be cancelled.";
+                    yield return "sendtochat There was an issue processing your command and it will be cancelled.";
                     yield break;
                 }
             }
