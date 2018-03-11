@@ -228,78 +228,97 @@ public class PressX : MonoBehaviour
     private IEnumerator ProcessTwitchCommand(string inputCommand)
     {
         var match = Regex.Match(inputCommand.ToLowerInvariant(), 
-            "^(?:press |tap )?(x|y|a|b)(?:(?: at| on)?((?: (?:(?:[0-9]+:)?[0-5]?[0-9]:)?[0-5]?[0-9]|[0-9]+)*))?$");
+            "^(?:press |tap )?(x|y|a|b)(?:(?: at| on)?([0-9: ]+))?$");
         if (!match.Success) yield break;
         int index = "xyab".IndexOf(match.Groups[1].Value, StringComparison.Ordinal);
         if (index < 0) yield break;
 
         float startTime = Info.GetTime();
-        yield return null;
+        
         int target = Mathf.FloorToInt(Info.GetTime());
         bool countingUp = startTime < Info.GetTime();
         bool waitingMusic = true;
 
-        if (index < 2 && match.Groups.Count == 3)
+        if (match.Groups.Count == 3)
         {
             string[] times = match.Groups[2].Value.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
             List<int> result = new List<int>();
             foreach (string time in times)
             {
+                int daysInt = 0, hoursInt = 0, minutesInt = 0, secondsInt;
                 string[] split = time.Split(':');
-                if(split.Length == 1)
-                    result.Add(int.Parse(split[0]));
-                else if (split.Length == 2)
-                    result.Add((int.Parse(split[0]) * 60) + int.Parse(split[1]));
+                if ((split.Length == 1 && int.TryParse(split[0], out secondsInt)) ||
+                    (split.Length == 2 && int.TryParse(split[0], out minutesInt) && int.TryParse(split[1], out secondsInt)) ||
+                    (split.Length == 3 && int.TryParse(split[0], out hoursInt) && int.TryParse(split[1], out minutesInt) && int.TryParse(split[2], out secondsInt)) ||
+                    (split.Length == 4 && int.TryParse(split[0], out daysInt) && int.TryParse(split[1], out hoursInt) && int.TryParse(split[2], out minutesInt) && int.TryParse(split[3], out secondsInt)))
+                    result.Add((daysInt * 86400) + (hoursInt * 3600) + (minutesInt * 60) + secondsInt);
                 else
-                    result.Add((int.Parse(split[0]) * 3600) + (int.Parse(split[1]) * 60) + int.Parse(split[2]));
+                    yield break;
             }
-            bool minutes = times.Any(x => x.Contains(":"));
-            minutes |= result.Any(x => x >= 60);
+            yield return null;
 
-            if (!minutes)
+            if (index < 2)
             {
-                target %= 60;
-                result = result.Select(x => x % 60).Distinct().ToList();
-            }
+                bool minutes = times.Any(x => x.Contains(":"));
+                minutes |= result.Any(x => x >= 60);
 
-            for(int i = result.Count - 1; i >= 0; i--)
-            {
-                int r = result[i];
-                if (!minutes && !countingUp)
+                if (!minutes)
                 {
-                    waitingMusic &= ((target + (r > target ? 60 : 0)) - r) > 30;
+                    target %= 60;
+                    result = result.Select(x => x % 60).Distinct().ToList();
                 }
-                else if (!minutes)
+
+                for (int i = result.Count - 1; i >= 0; i--)
                 {
-                    waitingMusic &= ((r + (r < target ? 60 : 0)) - target) > 30;
+                    int r = result[i];
+                    if (!minutes && !countingUp)
+                    {
+                        waitingMusic &= ((target + (r > target ? 60 : 0)) - r) > 30;
+                    }
+                    else if (!minutes)
+                    {
+                        waitingMusic &= ((r + (r < target ? 60 : 0)) - target) > 30;
+                    }
+                    else if (countingUp)
+                    {
+                        if (r < target)
+                        {
+                            result.RemoveAt(i);
+                            continue;
+                        }
+                        waitingMusic &= (r - target) > 30;
+                    }
+                    else
+                    {
+                        if (r > target)
+                        {
+                            result.RemoveAt(i);
+                            continue;
+                        }
+                        waitingMusic &= (target - r) > 30;
+                    }
                 }
-                else if (countingUp)
+
+                if (!result.Any())
                 {
-                    if (r < target) { result.RemoveAt(i); continue; }
-                    waitingMusic &= (r - target) > 30;
+                    yield return string.Format("sendtochaterror Button {0} was NOT pressed because all of your specified times have gone by already.", "xy"[index]);
+                    yield break;
                 }
-                else
+
+                if (waitingMusic)
+                    yield return "waiting music";
+
+                while (!result.Contains(target))
                 {
-                    if (r > target) { result.RemoveAt(i); continue; }
-                    waitingMusic &= (target - r) > 30;
+                    yield return "trycancel The button was not pressed due to a request to cancel";
+                    target = (Mathf.FloorToInt(Info.GetTime()));
+                    if (!minutes) target %= 60;
                 }
             }
-
-            if (!result.Any())
-            {
-                yield return string.Format("sendtochaterror Button {0} was NOT pressed because all of your specified times have gone by already.", "xy"[index]);
-                yield break;
-            }
-
-            if (waitingMusic)
-                yield return "waiting music";
-
-            while (!result.Contains(target))
-            {
-                yield return "trycancel The button was not pressed due to a request to cancel";
-                target = (Mathf.FloorToInt(Info.GetTime()));
-                if (!minutes) target %= 60;
-            }
+        }
+        else
+        {
+            yield return null;
         }
         yield return new KMSelectable[] { Buttons[index] };
     }
