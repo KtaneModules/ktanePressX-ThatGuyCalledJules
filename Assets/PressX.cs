@@ -58,11 +58,15 @@ public class PressX : MonoBehaviour
             {
                 Debug.LogFormat("[Press X #{0}] None applied.", _moduleID);
             }
-            if (_isSolved)
-            {
-                Debug.LogFormat("[Press X #{0}] The module has been solved!", _moduleID);
-            }
         }
+    }
+
+    void Solved()
+    {
+        Module.HandlePass();
+        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
+        _isSolved = true;
+        Debug.LogFormat("[Press X #{0}] The module has been solved!", _moduleID);
     }
 
     void Strike(string message)
@@ -101,9 +105,7 @@ public class PressX : MonoBehaviour
         {
             if (i == 0)
             {
-                Module.HandlePass();
-                Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
-                _isSolved = true;
+                Solved();
             };
             if (i == 1)
             {
@@ -117,9 +119,7 @@ public class PressX : MonoBehaviour
             {
                 if (i == 0)
                 {
-                    Module.HandlePass();
-                    Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
-                    _isSolved = true;
+                    Solved();
                 };
                 if (i == 1)
                 {
@@ -145,9 +145,7 @@ public class PressX : MonoBehaviour
             {
                 if (i == 0)
                 {
-                    Module.HandlePass();
-                    Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
-                    _isSolved = true;
+                    Solved();
                 };
                 if (i == 1)
                 {
@@ -177,9 +175,7 @@ public class PressX : MonoBehaviour
                 };
                 if (i == 1)
                 {
-                    Module.HandlePass();
-                    Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
-                    _isSolved = true;
+                    Solved();
                 }
             }
             else
@@ -201,7 +197,11 @@ public class PressX : MonoBehaviour
             {
                 if (i == 0)
                 {
-                    Module.HandlePass();
+                    Solved();
+                }
+                if (i == 1)
+                {
+                    Module.HandleStrike();
                 }
             }
             else
