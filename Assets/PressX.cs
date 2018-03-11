@@ -133,7 +133,7 @@ public class PressX : MonoBehaviour
         //Unicorn
         else if (Info.GetBatteryCount() > 2 && Info.IsIndicatorOff(Indicator.FRQ))
         {
-            if (new[] { 0, 2, 4, 11, 13, 19, 20, 22, 28, 31, 37, 40, 46, 55, 59 }.Contains(timeRemainingSeconds % 60))
+            if (new[] { 0, 2, 4, 8, 10, 14, 16, 20, 26, 28, 34, 38, 40, 44, 50, 56, 58 }.Contains(timeRemainingSeconds % 60))
             {
                 if (i == 0)
                 {
