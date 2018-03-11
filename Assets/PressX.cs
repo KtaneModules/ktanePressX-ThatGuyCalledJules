@@ -64,22 +64,19 @@ public class PressX : MonoBehaviour
             }
         }
     }
+
+    void Strike(string message)
+    {
+        Module.HandleStrike();
+        Debug.LogFormat("[Press X #{0}] {1}", _moduleID, message);
+    }
+
     // The module answer
     void Answer(int i)
     {
         float timeRemaining = Info.GetTime();
         int timeRemainingSeconds = Mathf.FloorToInt(timeRemaining);
 
-        if (i == 2)
-        {
-            Module.HandleStrike();
-            Debug.LogFormat("[Press X #{0}] Pressed A. STRIKE!", _moduleID);
-        }
-        if (i == 3)
-        {
-            Module.HandleStrike();
-            Debug.LogFormat("[Press X #{0}] Pressed B. STRIKE!", _moduleID);
-        }
         if (_isSolved == true)
         {
             if (i == 0 || i == 1 || i == 2 || i == 3)
@@ -87,9 +84,20 @@ public class PressX : MonoBehaviour
                 Module.HandleStrike();
                 Debug.LogFormat("[Press X #{0}] Dude, you've solved this already. Stop pressing buttons!", _moduleID);
             }
+            return;
         }
+
+        if (i == 2)
+        {
+            Strike("Pressed A. STRIKE!");
+        }
+        else if (i == 3)
+        {
+            Strike("Pressed B. STRIKE!");
+        }
+        
         //Beep beep
-        if (Info.IsIndicatorOn(Indicator.CAR))
+        else if (Info.IsIndicatorOn(Indicator.CAR))
         {
             if (i == 0)
             {
