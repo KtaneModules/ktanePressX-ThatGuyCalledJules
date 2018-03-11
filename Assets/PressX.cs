@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using System.Text.RegularExpressions;
 using KMHelper;
 
 public class PressX : MonoBehaviour
@@ -219,66 +221,86 @@ public class PressX : MonoBehaviour
     }
 
 #pragma warning disable 414
-    private string TwitchHelpMessage = "Submit button presses using !{0} press x on 1.";
+    private string TwitchHelpMessage = "Submit button presses using !{0} press x on 1 or !{0} press y on 23 or !press x on 8 28 48.";
     private int TwitchPlaysModuleScore = 1;
 #pragma warning restore 414
 
     private IEnumerator ProcessTwitchCommand(string inputCommand)
     {
-        KMSelectable button;
-        var command = inputCommand.ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        if (command.Length == 2) command = new string[] { command[0], command[1], "on", "" };
-        if (!command[0].Equals("press") && !command.Length.Equals(4)) yield break;
-        switch (command[1])
+        var match = Regex.Match(inputCommand.ToLowerInvariant(), 
+            "^(?:press |tap )?(x|y|a|b)(?:(?: at| on)?((?: (?:(?:[0-9]+:)?[0-5]?[0-9]:)?[0-5]?[0-9]|[0-9]+)*))?$");
+        if (!match.Success) yield break;
+        int index = "xyab".IndexOf(match.Groups[1].Value, StringComparison.Ordinal);
+        if (index < 0) yield break;
+
+        float startTime = Info.GetTime();
+        yield return null;
+        int target = Mathf.FloorToInt(Info.GetTime());
+        bool countingUp = startTime < Info.GetTime();
+        bool waitingMusic = true;
+
+        if (index < 2 && match.Groups.Count == 3)
         {
-            case "x":
-                button = Buttons[0];
-                break;
-            case "y":
-                button = Buttons[1];
-                break;
-            case "a":
-                button = null;
-                yield return null;
-                yield return new KMSelectable[] { Buttons[2] };
-                yield break;
-            case "b":
-                button = null;
-                yield return null;
-                yield return new KMSelectable[] { Buttons[3] };
-                yield break;
-            default:
-                button = null;
-                yield break;
-        }
-        if (!command[2].Equals("at") && !command[2].Equals("on")) yield break;
-        int result;
-        float timeRemaining = Info.GetTime();
-        int target = Mathf.FloorToInt(timeRemaining) % 10;
-        if (int.TryParse(command[3], out result))
-        {
-            if (button == null || result < 0 || result > 9 ) yield break;
-            yield return null;
-            int i = 0;
-            while (!(target == result))
+            string[] times = match.Groups[2].Value.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
+            List<int> result = new List<int>();
+            foreach (string time in times)
             {
-                yield return new WaitForSeconds(.1f);
-                target = (Mathf.FloorToInt(Info.GetTime()) % 10);
-                i++;
-                if (i > 200)
+                string[] split = time.Split(':');
+                if(split.Length == 1)
+                    result.Add(int.Parse(split[0]));
+                else if (split.Length == 2)
+                    result.Add((int.Parse(split[0]) * 60) + int.Parse(split[1]));
+                else
+                    result.Add((int.Parse(split[0]) * 3600) + (int.Parse(split[1]) * 60) + int.Parse(split[2]));
+            }
+            bool minutes = times.Any(x => x.Contains(":"));
+            minutes |= result.Any(x => x >= 60);
+
+            if (!minutes)
+            {
+                target %= 60;
+                result = result.Select(x => x % 60).Distinct().ToList();
+            }
+
+            for(int i = result.Count - 1; i >= 0; i--)
+            {
+                int r = result[i];
+                if (!minutes && !countingUp)
                 {
-                    yield return null;
-                    yield return "sendtochat There was an issue processing your command and it will be cancelled.";
-                    yield break;
+                    waitingMusic &= ((target + (r > target ? 60 : 0)) - r) > 30;
+                }
+                else if (!minutes)
+                {
+                    waitingMusic &= ((r + (r < target ? 60 : 0)) - target) > 30;
+                }
+                else if (countingUp)
+                {
+                    if (r < target) { result.RemoveAt(i); continue; }
+                    waitingMusic &= (r - target) > 30;
+                }
+                else
+                {
+                    if (r > target) { result.RemoveAt(i); continue; }
+                    waitingMusic &= (target - r) > 30;
                 }
             }
-            yield return new KMSelectable[] { button };
+
+            if (!result.Any())
+            {
+                yield return string.Format("sendtochaterror Button {0} was NOT pressed because all of your specified times have gone by already.", "xy"[index]);
+                yield break;
+            }
+
+            if (waitingMusic)
+                yield return "waiting music";
+
+            while (!result.Contains(target))
+            {
+                yield return "trycancel The button was not pressed due to a request to cancel";
+                target = (Mathf.FloorToInt(Info.GetTime()));
+                if (!minutes) target %= 60;
+            }
         }
-        else
-        {
-            if (button == null) yield break;
-            yield return null;
-            yield return new KMSelectable[] { button };
-        }
+        yield return new KMSelectable[] { Buttons[index] };
     }
 }
