@@ -161,7 +161,7 @@ public class PressX : MonoBehaviour
         //Doomicorn
         else if (Info.GetSerialNumberLetters().Count() == 3 && Info.GetBatteryCount() == 3 && Info.IsIndicatorOn(Indicator.NSA))
         {
-            if (new[] { 8, 9, 11, 13, 15, 23, 25, 29, 35, 37, 43, 47, 49, 53, 59, }.Contains(timeRemainingSeconds % 60))
+            if (new[] { 8, 9, 11, 13, 17, 19, 23, 25, 29, 35, 37, 43, 47, 49, 53, 59 }.Contains(timeRemainingSeconds % 60))
             {
                 if (i == 0)
                 {
