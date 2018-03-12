@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
+using System.Text.RegularExpressions;
 using KMHelper;
 
 public class PressX : MonoBehaviour
@@ -58,28 +60,29 @@ public class PressX : MonoBehaviour
             {
                 Debug.LogFormat("[Press X #{0}] None applied.", _moduleID);
             }
-            if (_isSolved)
-            {
-                Debug.LogFormat("[Press X #{0}] The module has been solved!", _moduleID);
-            }
         }
     }
+
+    void Solved()
+    {
+        Module.HandlePass();
+        Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
+        _isSolved = true;
+        Debug.LogFormat("[Press X #{0}] The module has been solved!", _moduleID);
+    }
+
+    void Strike(string message)
+    {
+        Module.HandleStrike();
+        Debug.LogFormat("[Press X #{0}] {1}", _moduleID, message);
+    }
+
     // The module answer
     void Answer(int i)
     {
         float timeRemaining = Info.GetTime();
         int timeRemainingSeconds = Mathf.FloorToInt(timeRemaining);
 
-        if (i == 2)
-        {
-            Module.HandleStrike();
-            Debug.LogFormat("[Press X #{0}] Pressed A. STRIKE!", _moduleID);
-        }
-        if (i == 3)
-        {
-            Module.HandleStrike();
-            Debug.LogFormat("[Press X #{0}] Pressed B. STRIKE!", _moduleID);
-        }
         if (_isSolved == true)
         {
             if (i == 0 || i == 1 || i == 2 || i == 3)
@@ -87,15 +90,24 @@ public class PressX : MonoBehaviour
                 Module.HandleStrike();
                 Debug.LogFormat("[Press X #{0}] Dude, you've solved this already. Stop pressing buttons!", _moduleID);
             }
+            return;
         }
+
+        if (i == 2)
+        {
+            Strike("Pressed A. STRIKE!");
+        }
+        else if (i == 3)
+        {
+            Strike("Pressed B. STRIKE!");
+        }
+        
         //Beep beep
-        if (Info.IsIndicatorOn(Indicator.CAR))
+        else if (Info.IsIndicatorOn(Indicator.CAR))
         {
             if (i == 0)
             {
-                Module.HandlePass();
-                Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
-                _isSolved = true;
+                Solved();
             };
             if (i == 1)
             {
@@ -109,9 +121,7 @@ public class PressX : MonoBehaviour
             {
                 if (i == 0)
                 {
-                    Module.HandlePass();
-                    Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
-                    _isSolved = true;
+                    Solved();
                 };
                 if (i == 1)
                 {
@@ -133,13 +143,11 @@ public class PressX : MonoBehaviour
         //Unicorn
         else if (Info.GetBatteryCount() > 2 && Info.IsIndicatorOff(Indicator.FRQ))
         {
-            if (new[] { 0, 2, 4, 11, 13, 19, 20, 22, 28, 31, 37, 40, 46, 55, 59 }.Contains(timeRemainingSeconds % 60))
+            if (new[] { 0, 2, 4, 8, 10, 14, 16, 20, 26, 28, 34, 38, 40, 44, 50, 56, 58 }.Contains(timeRemainingSeconds % 60))
             {
                 if (i == 0)
                 {
-                    Module.HandlePass();
-                    Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
-                    _isSolved = true;
+                    Solved();
                 };
                 if (i == 1)
                 {
@@ -161,7 +169,7 @@ public class PressX : MonoBehaviour
         //Doomicorn
         else if (Info.GetSerialNumberLetters().Count() == 3 && Info.GetBatteryCount() == 3 && Info.IsIndicatorOn(Indicator.NSA))
         {
-            if (new[] { 8, 9, 11, 13, 15, 23, 25, 29, 35, 37, 43, 47, 49, 53, 59, }.Contains(timeRemainingSeconds % 60))
+            if (new[] { 8, 9, 11, 13, 17, 19, 23, 25, 29, 35, 37, 43, 47, 49, 53, 59 }.Contains(timeRemainingSeconds % 60))
             {
                 if (i == 0)
                 {
@@ -169,9 +177,7 @@ public class PressX : MonoBehaviour
                 };
                 if (i == 1)
                 {
-                    Module.HandlePass();
-                    Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.CorrectChime, transform);
-                    _isSolved = true;
+                    Solved();
                 }
             }
             else
@@ -193,7 +199,11 @@ public class PressX : MonoBehaviour
             {
                 if (i == 0)
                 {
-                    Module.HandlePass();
+                    Solved();
+                }
+                if (i == 1)
+                {
+                    Module.HandleStrike();
                 }
             }
             else
@@ -211,66 +221,105 @@ public class PressX : MonoBehaviour
     }
 
 #pragma warning disable 414
-    private string TwitchHelpMessage = "Submit button presses using !{0} press x on 1.";
+    private string TwitchHelpMessage = "Submit button presses using !{0} press x on 1 or !{0} press y on 23 or !press x on 8 28 48.";
     private int TwitchPlaysModuleScore = 1;
 #pragma warning restore 414
 
     private IEnumerator ProcessTwitchCommand(string inputCommand)
     {
-        KMSelectable button;
-        var command = inputCommand.ToLowerInvariant().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        if (command.Length == 2) command = new string[] { command[0], command[1], "on", "" };
-        if (!command[0].Equals("press") && !command.Length.Equals(4)) yield break;
-        switch (command[1])
+        var match = Regex.Match(inputCommand.ToLowerInvariant(), 
+            "^(?:press |tap )?(x|y|a|b)(?:(?: at| on)?([0-9: ]+))?$");
+        if (!match.Success) yield break;
+        int index = "xyab".IndexOf(match.Groups[1].Value, StringComparison.Ordinal);
+        if (index < 0) yield break;
+
+        float startTime = Info.GetTime();
+        
+        int target = Mathf.FloorToInt(Info.GetTime());
+        bool countingUp = startTime < Info.GetTime();
+        bool waitingMusic = true;
+
+        if (match.Groups.Count == 3)
         {
-            case "x":
-                button = Buttons[0];
-                break;
-            case "y":
-                button = Buttons[1];
-                break;
-            case "a":
-                button = null;
-                yield return null;
-                yield return new KMSelectable[] { Buttons[2] };
-                yield break;
-            case "b":
-                button = null;
-                yield return null;
-                yield return new KMSelectable[] { Buttons[3] };
-                yield break;
-            default:
-                button = null;
-                yield break;
-        }
-        if (!command[2].Equals("at") && !command[2].Equals("on")) yield break;
-        int result;
-        float timeRemaining = Info.GetTime();
-        int target = Mathf.FloorToInt(timeRemaining) % 10;
-        if (int.TryParse(command[3], out result))
-        {
-            if (button == null || result < 0 || result > 9 ) yield break;
-            yield return null;
-            int i = 0;
-            while (!(target == result))
+            string[] times = match.Groups[2].Value.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
+            List<int> result = new List<int>();
+            foreach (string time in times)
             {
-                yield return new WaitForSeconds(.1f);
-                target = (Mathf.FloorToInt(Info.GetTime()) % 10);
-                i++;
-                if (i > 200)
+                int daysInt = 0, hoursInt = 0, minutesInt = 0, secondsInt;
+                string[] split = time.Split(':');
+                if ((split.Length == 1 && int.TryParse(split[0], out secondsInt)) ||
+                    (split.Length == 2 && int.TryParse(split[0], out minutesInt) && int.TryParse(split[1], out secondsInt)) ||
+                    (split.Length == 3 && int.TryParse(split[0], out hoursInt) && int.TryParse(split[1], out minutesInt) && int.TryParse(split[2], out secondsInt)) ||
+                    (split.Length == 4 && int.TryParse(split[0], out daysInt) && int.TryParse(split[1], out hoursInt) && int.TryParse(split[2], out minutesInt) && int.TryParse(split[3], out secondsInt)))
+                    result.Add((daysInt * 86400) + (hoursInt * 3600) + (minutesInt * 60) + secondsInt);
+                else
+                    yield break;
+            }
+            yield return null;
+
+            if (index < 2)
+            {
+                bool minutes = times.Any(x => x.Contains(":"));
+                minutes |= result.Any(x => x >= 60);
+
+                if (!minutes)
                 {
-                    yield return null;
-                    yield return "sendtochat There was an issue processing your command and it will be cancelled.";
+                    target %= 60;
+                    result = result.Select(x => x % 60).Distinct().ToList();
+                }
+
+                for (int i = result.Count - 1; i >= 0; i--)
+                {
+                    int r = result[i];
+                    if (!minutes && !countingUp)
+                    {
+                        waitingMusic &= ((target + (r > target ? 60 : 0)) - r) > 30;
+                    }
+                    else if (!minutes)
+                    {
+                        waitingMusic &= ((r + (r < target ? 60 : 0)) - target) > 30;
+                    }
+                    else if (countingUp)
+                    {
+                        if (r < target)
+                        {
+                            result.RemoveAt(i);
+                            continue;
+                        }
+                        waitingMusic &= (r - target) > 30;
+                    }
+                    else
+                    {
+                        if (r > target)
+                        {
+                            result.RemoveAt(i);
+                            continue;
+                        }
+                        waitingMusic &= (target - r) > 30;
+                    }
+                }
+
+                if (!result.Any())
+                {
+                    yield return string.Format("sendtochaterror Button {0} was NOT pressed because all of your specified times have gone by already.", "xy"[index]);
                     yield break;
                 }
+
+                if (waitingMusic)
+                    yield return "waiting music";
+
+                while (!result.Contains(target))
+                {
+                    yield return "trycancel The button was not pressed due to a request to cancel";
+                    target = (Mathf.FloorToInt(Info.GetTime()));
+                    if (!minutes) target %= 60;
+                }
             }
-            yield return new KMSelectable[] { button };
         }
         else
         {
-            if (button == null) yield break;
             yield return null;
-            yield return new KMSelectable[] { button };
         }
+        yield return new KMSelectable[] { Buttons[index] };
     }
 }
