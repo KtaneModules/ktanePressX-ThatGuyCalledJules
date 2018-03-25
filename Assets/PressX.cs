@@ -223,26 +223,35 @@ public class PressX : MonoBehaviour
 #pragma warning disable 414
     private string TwitchHelpMessage = "Submit button presses using !{0} press x on 1 or !{0} press y on 23 or !press x on 8 28 48.";
     private int TwitchPlaysModuleScore = 1;
+    private bool TwitchZenMode = false;
 #pragma warning restore 414
 
     private IEnumerator ProcessTwitchCommand(string inputCommand)
     {
-        var match = Regex.Match(inputCommand.ToLowerInvariant(), 
+        var match = Regex.Match(inputCommand.ToLowerInvariant(),
             "^(?:press |tap )?(x|y|a|b)(?:(?: at| on)?([0-9: ]+))?$");
         if (!match.Success) yield break;
         int index = "xyab".IndexOf(match.Groups[1].Value, StringComparison.Ordinal);
         if (index < 0) yield break;
 
-        float startTime = Info.GetTime();
-        
         int target = Mathf.FloorToInt(Info.GetTime());
-        bool countingUp = startTime < Info.GetTime();
         bool waitingMusic = true;
+        bool minutes;
 
-        if (match.Groups.Count == 3)
+        string[] times = match.Groups[2].Value.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
+        List<int> result = new List<int>();
+
+        if (!times.Any() || index >= 2)
         {
-            string[] times = match.Groups[2].Value.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
-            List<int> result = new List<int>();
+            minutes = false;
+            for (int i = 0; i < 60; i++)
+            {
+                result.Add(i);
+            }
+        }
+        else
+        {
+            minutes = times.Any(x => x.Contains(":"));
             foreach (string time in times)
             {
                 int daysInt = 0, hoursInt = 0, minutesInt = 0, secondsInt;
@@ -253,73 +262,67 @@ public class PressX : MonoBehaviour
                     (split.Length == 4 && int.TryParse(split[0], out daysInt) && int.TryParse(split[1], out hoursInt) && int.TryParse(split[2], out minutesInt) && int.TryParse(split[3], out secondsInt)))
                     result.Add((daysInt * 86400) + (hoursInt * 3600) + (minutesInt * 60) + secondsInt);
                 else
-                    yield break;
-            }
-            yield return null;
-
-            if (index < 2)
-            {
-                bool minutes = times.Any(x => x.Contains(":"));
-                minutes |= result.Any(x => x >= 60);
-
-                if (!minutes)
                 {
-                    target %= 60;
-                    result = result.Select(x => x % 60).Distinct().ToList();
-                }
-
-                for (int i = result.Count - 1; i >= 0; i--)
-                {
-                    int r = result[i];
-                    if (!minutes && !countingUp)
-                    {
-                        waitingMusic &= ((target + (r > target ? 60 : 0)) - r) > 30;
-                    }
-                    else if (!minutes)
-                    {
-                        waitingMusic &= ((r + (r < target ? 60 : 0)) - target) > 30;
-                    }
-                    else if (countingUp)
-                    {
-                        if (r < target)
-                        {
-                            result.RemoveAt(i);
-                            continue;
-                        }
-                        waitingMusic &= (r - target) > 30;
-                    }
-                    else
-                    {
-                        if (r > target)
-                        {
-                            result.RemoveAt(i);
-                            continue;
-                        }
-                        waitingMusic &= (target - r) > 30;
-                    }
-                }
-
-                if (!result.Any())
-                {
-                    yield return string.Format("sendtochaterror Button {0} was NOT pressed because all of your specified times have gone by already.", "xy"[index]);
+                    yield return string.Format("sendtochaterror Badly formatted time {0}. Time should either be in seconds (53) or in full time (1:23:45)", time);
                     yield break;
                 }
-
-                if (waitingMusic)
-                    yield return "waiting music";
-
-                while (!result.Contains(target))
-                {
-                    yield return "trycancel The button was not pressed due to a request to cancel";
-                    target = (Mathf.FloorToInt(Info.GetTime()));
-                    if (!minutes) target %= 60;
-                }
             }
+            minutes |= result.Any(x => x >= 60);
         }
-        else
+        yield return null;
+
+        if (!minutes)
         {
-            yield return null;
+            target %= 60;
+            result = result.Select(x => x % 60).Distinct().ToList();
         }
-        yield return new KMSelectable[] { Buttons[index] };
+
+        for (int i = result.Count - 1; i >= 0; i--)
+        {
+            int r = result[i];
+            if (!minutes && !TwitchZenMode)
+            {
+                waitingMusic &= ((target + (r > target ? 60 : 0)) - r) > 30;
+            }
+            else if (!minutes)
+            {
+                waitingMusic &= ((r + (r < target ? 60 : 0)) - target) > 30;
+            }
+            else if (!TwitchZenMode)
+            {
+                if (r > target)
+                {
+                    result.RemoveAt(i);
+                    continue;
+                }
+                waitingMusic &= (target - r) > 30;
+            }
+            else
+            {
+                if (r < target)
+                {
+                    result.RemoveAt(i);
+                    continue;
+                }
+                waitingMusic &= (r - target) > 30;
+            }
+        }
+
+        if (!result.Any())
+        {
+            yield return string.Format("sendtochaterror Button {0} was NOT pressed because all of your specified times have gone by already.", "xy"[index]);
+            yield break;
+        }
+
+        if (waitingMusic)
+            yield return "waiting music";
+
+        while (!result.Contains(target))
+        {
+            yield return "trycancel The button was not pressed due to a request to cancel";
+            target = (Mathf.FloorToInt(Info.GetTime()));
+            if (!minutes) target %= 60;
+        }
+        yield return new KMSelectable[] {Buttons[index]};
     }
 }
