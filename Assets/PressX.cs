@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,15 +15,14 @@ public class PressX : MonoBehaviour
 
     private static int _moduleIDCounter = 1;
     private int _moduleID;
-    private bool Active;
     private bool _isSolved;
 
     // Loading Screen
     void Start()
     {
         _moduleID = _moduleIDCounter++;
-        Module.OnActivate += delegate () { Active = true; };
     }
+
     //Room shown, lights off
     private void Awake()
     {
@@ -38,28 +37,27 @@ public class PressX : MonoBehaviour
                 return false;
             };
         }
+
         //Logging
-        {
             if (Info.IsIndicatorOn(Indicator.CAR))
             {
-                Debug.LogFormat("[Press X #{0}] Lit Car.", _moduleID);
+            Debug.LogFormat("[Press X #{0}] Lit CAR (rule 1).", _moduleID);
             }
             else if (Info.IsIndicatorOff(Indicator.BOB))
             {
-                Debug.LogFormat("[Press X #{0}] Unlit BOB.", _moduleID);
+            Debug.LogFormat("[Press X #{0}] Unlit BOB (rule 2).", _moduleID);
             }
             else if (Info.GetBatteryCount() > 2 && Info.IsIndicatorOff(Indicator.FRQ))
             {
-                Debug.LogFormat("[Press X #{0}] Unlit FRQ and 3+ batteries.", _moduleID);
+            Debug.LogFormat("[Press X #{0}] Unlit FRQ and 3+ batteries (rule 3).", _moduleID);
             }
             else if (Info.GetSerialNumberLetters().Count() == 3 && Info.GetBatteryCount() == 3 && Info.IsIndicatorOn(Indicator.NSA))
             {
-                Debug.LogFormat("[Press X #{0}] Lit NSA, 3 batteries and equal number of numbers and letters in serial.", _moduleID);
+            Debug.LogFormat("[Press X #{0}] Lit NSA, 3 batteries and equal number of digits and letters in serial (rule 4).", _moduleID);
             }
             else
             {
-                Debug.LogFormat("[Press X #{0}] None applied.", _moduleID);
-            }
+            Debug.LogFormat("[Press X #{0}] No special rule applies — using otherwise rule.", _moduleID);
         }
     }
 
