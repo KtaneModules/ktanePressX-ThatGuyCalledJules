@@ -234,7 +234,6 @@ public class PressX : MonoBehaviour
         int index = "xyab".IndexOf(match.Groups[1].Value, StringComparison.Ordinal);
         if (index < 0) yield break;
 
-        int target = Mathf.FloorToInt(Info.GetTime());
         bool waitingMusic = true;
         bool minutes;
 
@@ -270,6 +269,8 @@ public class PressX : MonoBehaviour
             minutes |= result.Any(x => x >= 60);
         }
         yield return null;
+        yield return null;
+        int target = Mathf.FloorToInt(Info.GetTime());
 
         if (!minutes)
         {
@@ -323,6 +324,7 @@ public class PressX : MonoBehaviour
             target = (Mathf.FloorToInt(Info.GetTime()));
             if (!minutes) target %= 60;
         }
-        yield return new KMSelectable[] {Buttons[index]};
+        Buttons[index].OnInteract();
+        yield return new WaitForSeconds(0.1f);
     }
 }
