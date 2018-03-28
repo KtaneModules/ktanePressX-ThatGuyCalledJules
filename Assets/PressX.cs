@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -15,15 +15,14 @@ public class PressX : MonoBehaviour
 
     private static int _moduleIDCounter = 1;
     private int _moduleID;
-    private bool Active;
     private bool _isSolved;
 
     // Loading Screen
     void Start()
     {
         _moduleID = _moduleIDCounter++;
-        Module.OnActivate += delegate () { Active = true; };
     }
+
     //Room shown, lights off
     private void Awake()
     {
@@ -38,28 +37,27 @@ public class PressX : MonoBehaviour
                 return false;
             };
         }
+
         //Logging
+        if (Info.IsIndicatorOn(Indicator.CAR))
         {
-            if (Info.IsIndicatorOn(Indicator.CAR))
-            {
-                Debug.LogFormat("[Press X #{0}] Lit Car.", _moduleID);
-            }
-            else if (Info.IsIndicatorOff(Indicator.BOB))
-            {
-                Debug.LogFormat("[Press X #{0}] Unlit BOB.", _moduleID);
-            }
-            else if (Info.GetBatteryCount() > 2 && Info.IsIndicatorOff(Indicator.FRQ))
-            {
-                Debug.LogFormat("[Press X #{0}] Unlit FRQ and 3+ batteries.", _moduleID);
-            }
-            else if (Info.GetSerialNumberLetters().Count() == 3 && Info.GetBatteryCount() == 3 && Info.IsIndicatorOn(Indicator.NSA))
-            {
-                Debug.LogFormat("[Press X #{0}] Lit NSA, 3 batteries and equal number of numbers and letters in serial.", _moduleID);
-            }
-            else
-            {
-                Debug.LogFormat("[Press X #{0}] None applied.", _moduleID);
-            }
+            Debug.LogFormat("[Press X #{0}] Lit CAR (rule 1).", _moduleID);
+        }
+        else if (Info.IsIndicatorOff(Indicator.BOB))
+        {
+            Debug.LogFormat("[Press X #{0}] Unlit BOB (rule 2).", _moduleID);
+        }
+        else if (Info.GetBatteryCount() > 2 && Info.IsIndicatorOff(Indicator.FRQ))
+        {
+            Debug.LogFormat("[Press X #{0}] Unlit FRQ and 3+ batteries (rule 3).", _moduleID);
+        }
+        else if (Info.GetSerialNumberLetters().Count() == 3 && Info.GetBatteryCount() == 3 && Info.IsIndicatorOn(Indicator.NSA))
+        {
+            Debug.LogFormat("[Press X #{0}] Lit NSA, 3 batteries and equal number of digits and letters in serial (rule 4).", _moduleID);
+        }
+        else
+        {
+            Debug.LogFormat("[Press X #{0}] No special rule applies — using otherwise rule.", _moduleID);
         }
     }
 
@@ -83,6 +81,8 @@ public class PressX : MonoBehaviour
         float timeRemaining = Info.GetTime();
         int timeRemainingSeconds = Mathf.FloorToInt(timeRemaining);
 
+        Debug.LogFormat("[Press X #{0}] Pressed {1} when time remaining was {2:00}:{3:00}.", _moduleID, "XYAB"[i], timeRemainingSeconds / 60, timeRemainingSeconds % 60);
+
         if (_isSolved == true)
         {
             if (i == 0 || i == 1 || i == 2 || i == 3)
@@ -101,7 +101,7 @@ public class PressX : MonoBehaviour
         {
             Strike("Pressed B. STRIKE!");
         }
-        
+
         //Beep beep
         else if (Info.IsIndicatorOn(Indicator.CAR))
         {
@@ -238,7 +238,7 @@ public class PressX : MonoBehaviour
         bool waitingMusic = true;
         bool minutes;
 
-        string[] times = match.Groups[2].Value.Split(new[] {" "}, StringSplitOptions.RemoveEmptyEntries);
+        string[] times = match.Groups[2].Value.Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
         List<int> result = new List<int>();
 
         if (!times.Any() || index >= 2)
@@ -323,6 +323,6 @@ public class PressX : MonoBehaviour
             target = (Mathf.FloorToInt(Info.GetTime()));
             if (!minutes) target %= 60;
         }
-        yield return new KMSelectable[] {Buttons[index]};
+        yield return new KMSelectable[] { Buttons[index] };
     }
 }
