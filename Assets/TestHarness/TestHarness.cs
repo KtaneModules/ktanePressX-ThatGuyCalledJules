@@ -206,7 +206,7 @@ public class FakeBombInfo : MonoBehaviour
         }
         else
         {
-            timeLeft -= Time.fixedDeltaTime;
+            timeLeft += Time.fixedDeltaTime;
             if (timeLeft < 0) timeLeft = 0;
         }
     }
@@ -732,6 +732,15 @@ public class TestHarness : MonoBehaviour
                 else if (currentObject is Quaternion)
                 {
                     moduleTransform.localRotation = (Quaternion) currentObject;
+                }
+                else if (currentObject is KMSelectable[])
+                {
+                    foreach (KMSelectable selectable in (KMSelectable[]) currentObject)
+                    {
+                        DoInteractionStart(selectable);
+                        DoInteractionEnd(selectable);
+                        yield return new WaitForSeconds(0.1f);
+                    }
                 }
                 else
                     yield return currentObject;
