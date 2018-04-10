@@ -16,16 +16,13 @@ public class PressX : MonoBehaviour
     private static int _moduleIDCounter = 1;
     private int _moduleID;
     private bool _isSolved;
+    private bool _doomicorn;
 
-    // Loading Screen
+    //Room shown, lights off
     void Start()
     {
         _moduleID = _moduleIDCounter++;
-    }
 
-    //Room shown, lights off
-    private void Awake()
-    {
         for (int i = 0; i < 4; i++)
         {
             //Button handling 
@@ -41,23 +38,24 @@ public class PressX : MonoBehaviour
         //Logging
         if (Info.IsIndicatorOn(Indicator.CAR))
         {
-            Debug.LogFormat("[Press X #{0}] Lit CAR (rule 1).", _moduleID);
+            Debug.LogFormat("[Press X #{0}] Lit CAR - Press X at any time.", _moduleID);
         }
         else if (Info.IsIndicatorOff(Indicator.BOB))
         {
-            Debug.LogFormat("[Press X #{0}] Unlit BOB (rule 2).", _moduleID);
+            Debug.LogFormat("[Press X #{0}] Unlit BOB - Press X when right most seconds digit in countdown timer is equal to the first serial number digit.", _moduleID);
         }
         else if (Info.GetBatteryCount() > 2 && Info.IsIndicatorOff(Indicator.FRQ))
         {
-            Debug.LogFormat("[Press X #{0}] Unlit FRQ and 3+ batteries (rule 3).", _moduleID);
+            Debug.LogFormat("[Press X #{0}] Unlit FRQ and 3+ batteries - Press X when the seconds in the countdown timer is equal to a prime number minus 3.", _moduleID);
         }
         else if (Info.GetSerialNumberLetters().Count() == 3 && Info.GetBatteryCount() == 3 && Info.IsIndicatorOn(Indicator.NSA))
         {
-            Debug.LogFormat("[Press X #{0}] Lit NSA, 3 batteries and equal number of digits and letters in serial (rule 4).", _moduleID);
+            _doomicorn = true;
+            Debug.LogFormat("[Press X #{0}] Lit NSA, 3 batteries and equal number of digits and letters in serial - Press Y when the seconds in the countdown timer is equal to a prime number plus 6.", _moduleID);
         }
         else
         {
-            Debug.LogFormat("[Press X #{0}] No special rule applies — using otherwise rule.", _moduleID);
+            Debug.LogFormat("[Press X #{0}] No special rule applies — Press X when right most seconds digit in countdown timer is equal to the last serial number digit.", _moduleID);
         }
     }
 
@@ -85,138 +83,99 @@ public class PressX : MonoBehaviour
 
         if (_isSolved == true)
         {
-            if (i == 0 || i == 1 || i == 2 || i == 3)
-            {
-                Module.HandleStrike();
-                Debug.LogFormat("[Press X #{0}] Dude, you've solved this already. Stop pressing buttons!", _moduleID);
-            }
+            Strike("Dude, you've solved this already. Stop pressing buttons!");
             return;
         }
 
-        if (i == 2)
+        //Beep beep
+        if (Info.IsIndicatorOn(Indicator.CAR))
+        {
+            if (i == 0)
+            {
+                Solved();
+                return;
+            }
+        }
+        //"No mistakes, just happy accidents." SAY THAT TO MY CODING ERRORS!
+        else if (Info.IsIndicatorOff(Indicator.BOB))
+        {
+            if (i == 0)
+            {
+                if ((timeRemainingSeconds % 10) == (Info.GetSerialNumberNumbers().First()))
+                {
+                    Solved();
+                }
+                else
+                {
+                    Strike(string.Format("{0} is not equal to the first serial number digit of {1}, STRIKE.", timeRemainingSeconds % 10, Info.GetSerialNumberNumbers().First()));
+                }
+                return;
+            }
+        }
+        //Unicorn
+        else if (Info.GetBatteryCount() > 2 && Info.IsIndicatorOff(Indicator.FRQ))
+        {
+            if (i == 0)
+            {
+                if (new[] {0, 2, 4, 8, 10, 14, 16, 20, 26, 28, 34, 38, 40, 44, 50, 56, 58}.Contains(timeRemainingSeconds % 60))
+                {
+                    Solved();
+                }
+                else
+                {
+                    Strike(string.Format("{0} is not equal to a prime number minus 3, STRIKE.", timeRemainingSeconds % 60));
+                }
+                return;
+            }
+        }
+        //Doomicorn
+        else if (Info.GetSerialNumberLetters().Count() == 3 && Info.GetBatteryCount() == 3 && Info.IsIndicatorOn(Indicator.NSA))
+        {
+            if (i == 1)
+            {
+                if (new[] {8, 9, 11, 13, 17, 19, 23, 25, 29, 35, 37, 43, 47, 49, 53, 59}.Contains(timeRemainingSeconds % 60))
+                {
+                    Solved();
+                }
+                else
+                {
+                    Strike(string.Format("{0} is not equal to a prime number plus 6, STRIKE.", timeRemainingSeconds % 60));
+                }
+                return;
+            }
+        }
+        //If none apply
+        else
+        {
+            if (i == 0)
+            {
+                if ((timeRemainingSeconds % 10) == (Info.GetSerialNumberNumbers().Last()))
+                {
+                    Solved();
+                }
+                else
+                {
+                    Strike(string.Format("{0} is not equal to the last serial number digit of {1}, STRIKE.", timeRemainingSeconds % 10, Info.GetSerialNumberNumbers().Last()));
+                }
+                return;
+            }
+        }
+
+        if (i == 0 && _doomicorn)
+        {
+            Strike("Doomicorn presnt. STRIKE!");
+        }
+        else if (i == 1 && !_doomicorn)
+        {
+            Strike("No Doomicorn present. STRIKE!");
+        }
+        else if (i == 2)
         {
             Strike("Pressed A. STRIKE!");
         }
         else if (i == 3)
         {
             Strike("Pressed B. STRIKE!");
-        }
-
-        //Beep beep
-        else if (Info.IsIndicatorOn(Indicator.CAR))
-        {
-            if (i == 0)
-            {
-                Solved();
-            };
-            if (i == 1)
-            {
-                Module.HandleStrike();
-            }
-        }
-        //"No mistakes, just happy accidents." SAY THAT TO MY CODING ERRORS!
-        else if (Info.IsIndicatorOff(Indicator.BOB))
-        {
-            if ((timeRemainingSeconds % 10) == (Info.GetSerialNumberNumbers().First()))
-            {
-                if (i == 0)
-                {
-                    Solved();
-                };
-                if (i == 1)
-                {
-                    Module.HandleStrike();
-                };
-            }
-            else
-            {
-                if (i == 0)
-                {
-                    Module.HandleStrike();
-                };
-                if (i == 1)
-                {
-                    Module.HandleStrike();
-                };
-            }
-        }
-        //Unicorn
-        else if (Info.GetBatteryCount() > 2 && Info.IsIndicatorOff(Indicator.FRQ))
-        {
-            if (new[] { 0, 2, 4, 8, 10, 14, 16, 20, 26, 28, 34, 38, 40, 44, 50, 56, 58 }.Contains(timeRemainingSeconds % 60))
-            {
-                if (i == 0)
-                {
-                    Solved();
-                };
-                if (i == 1)
-                {
-                    Module.HandleStrike();
-                };
-            }
-            else
-            {
-                if (i == 0)
-                {
-                    Module.HandleStrike();
-                };
-                if (i == 1)
-                {
-                    Module.HandleStrike();
-                };
-            }
-        }
-        //Doomicorn
-        else if (Info.GetSerialNumberLetters().Count() == 3 && Info.GetBatteryCount() == 3 && Info.IsIndicatorOn(Indicator.NSA))
-        {
-            if (new[] { 8, 9, 11, 13, 17, 19, 23, 25, 29, 35, 37, 43, 47, 49, 53, 59 }.Contains(timeRemainingSeconds % 60))
-            {
-                if (i == 0)
-                {
-                    Module.HandleStrike();
-                };
-                if (i == 1)
-                {
-                    Solved();
-                }
-            }
-            else
-            {
-                if (i == 0)
-                {
-                    Module.HandleStrike();
-                };
-                if (i == 1)
-                {
-                    Module.HandleStrike();
-                }
-            }
-        }
-        //If none apply
-        else
-        {
-            if ((timeRemainingSeconds % 10) == (Info.GetSerialNumberNumbers().Last()))
-            {
-                if (i == 0)
-                {
-                    Solved();
-                }
-                if (i == 1)
-                {
-                    Module.HandleStrike();
-                }
-            }
-            else
-            {
-                if (i == 0)
-                {
-                    Module.HandleStrike();
-                }
-                if (i == 1)
-                {
-                    Module.HandleStrike();
-                }
-            }
         }
     }
 
