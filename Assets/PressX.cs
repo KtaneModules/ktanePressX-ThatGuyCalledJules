@@ -200,21 +200,8 @@ public class PressX : MonoBehaviour
         string[] times = match.Groups[2].Value.Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
         List<int> result = new List<int>();
 
-        if (times.Any() && index < 2)
+        if (!times.Any() || index >= 2)
         {
-			foreach (string time in times)
-			{
-				string[] split = time.Split(':');
-				if (split.Length <= 4 && split.All(x => int.TryParse(x, out _)))
-					continue;
-
-				yield return $"sendtochaterror Badly formatted time {time}. Time should either be in seconds (53) or in full time (1:23:45)";
-				yield break;
-			}
-
-			yield return null;
-			yield return null;
-
 			minutes = false;
             for (int i = 0; i < 60; i++)
             {
