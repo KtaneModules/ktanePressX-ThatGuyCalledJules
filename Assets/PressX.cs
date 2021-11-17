@@ -260,7 +260,7 @@ public class PressX : MonoBehaviour
         string[] times = match.Groups[2].Value.Split(new[] { " " }, StringSplitOptions.RemoveEmptyEntries);
         List<int> result = new List<int>();
 
-        if (!times.Any())
+        if (!times.Any() && index > 3)
         {
 			minutes = false;
             for (int i = 0; i < 60; i++)
